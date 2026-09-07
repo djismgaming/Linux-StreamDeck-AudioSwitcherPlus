@@ -20,6 +20,10 @@ Both install and run completely independently (different plugin UUIDs, different
 
 Shared, non-code assets (currently just the button icons) live in [`shared/`](shared/) and are pulled in by both projects' build steps rather than duplicated.
 
+## Building
+
+Each build documents its own process - see the "Building"/"Building From Source" section of [the exe README](audio-switcher-exe/README.md#building-from-source) or [the node README](audio-switcher-node/README.md#building). Both build steps install straight into `%APPDATA%\Elgato\StreamDeck\Plugins\`, so **fully quit Stream Deck before building/installing**, then relaunch it afterward to pick up the change.
+
 ## Notes
 
 This uses undocumented and unsupported Windows APIs (the same ones, either way). These have apparently worked since Windows 7, but they might stop working at any time or have unexpected side effects.

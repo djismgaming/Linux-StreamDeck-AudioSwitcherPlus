@@ -44,3 +44,26 @@ This is the first release of Audio Switcher Plus as its own product, forked and 
 # Installation
 
 Download the `com.morganscruggs.audioswitcherplus.streamDeckPlugin` file from [the releases page](https://github.com/morganscruggs/StreamDeck-AudioSwitcher/releases), and double-click it.
+
+# Building From Source
+
+Requires Visual Studio 2022 (with the "Desktop development with C++" workload) and CMake 3.15+. Windows only - see [the repo root README](../README.md).
+
+```powershell
+cd audio-switcher-exe
+cmake -E make_directory build
+cd build
+cmake ..
+cmake --build . --config RelWithDebInfo --target install --parallel
+```
+
+This compiles `sdaudioswitchplus.exe` and installs it, along with the property inspector, icons, and manifest, into `../com.morganscruggs.audioswitcherplus.sdPlugin` at the repo root (the default `CMAKE_INSTALL_PREFIX`, set by `set_default_install_dir_to_repo_root()` in `StreamDeckSDK.cmake`). The install step then automatically mirrors that folder into `%APPDATA%\Elgato\StreamDeck\Plugins\com.morganscruggs.audioswitcherplus.sdPlugin` (`sync_install_to_streamdeck_plugin_dir()`, same file) - the same way [the Node build](../audio-switcher-node/)'s rollup config syncs its own output. The `build/` directory can be reused for later builds; swap `RelWithDebInfo` for `Debug` to build that configuration instead.
+
+**Before rebuilding, fully quit Stream Deck** - its main process holds file handles inside the Plugins folder, and the install step's sync silently fails with a permission error otherwise (the build itself still succeeds). Relaunch it afterward to pick up the new build:
+
+```powershell
+Stop-Process -Name "StreamDeck" -Force -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+cmake --build . --config RelWithDebInfo --target install --parallel
+Start-Process "C:\Program Files\Elgato\StreamDeck\StreamDeck.exe"
+```
