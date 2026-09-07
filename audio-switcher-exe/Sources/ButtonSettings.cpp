@@ -128,13 +128,12 @@ void to_json(nlohmann::json& j, const ButtonSettings& bs) {
 namespace {
 
 std::string FuzzifyInterface(const std::string& name) {
-  // Windows likes to replace "Foo" with "2- Foo"
-  const std::regex pattern {"^([0-9]+- )?(.+)$"};
-  std::smatch captures;
-  if (!std::regex_match(name, captures, pattern)) {
-    return name;
-  } 
-  return captures[2];
+  // Windows likes to replace "Foo" with "2- Foo", either as the whole interface name or embedded
+  // as "Endpoint (2- Foo)" - strip that numeric prefix wherever it appears so renumbered devices
+  // still fuzzy-match. Mirrors stripNumberPrefix() in the property inspector's index.html, which
+  // already handled both forms, but only for display.
+  static const std::regex pattern {"(^|\\()[0-9]+- "};
+  return std::regex_replace(name, pattern, "$1", std::regex_constants::format_first_only);
 }
 
 std::string GetVolatileID(

@@ -2,12 +2,12 @@ import type { AudioDeviceInfo, DeviceMatchStrategy, DirectionSnapshot } from "./
 
 /**
  * Windows likes to replace "Foo" with "2- Foo", either as the whole interface name or embedded as
- * "Endpoint (2- Foo)" - strips that numeric prefix so renumbered devices still fuzzy-match. Ported
- * from ButtonSettings.cpp's FuzzifyInterface().
+ * "Endpoint (2- Foo)" - strips that numeric prefix (wherever it appears) so renumbered devices
+ * still fuzzy-match. Mirrors stripNumberPrefix() in the property inspector's index.html (which
+ * handles both forms for display) and ButtonSettings.cpp's FuzzifyInterface().
  */
 function fuzzifyInterface(name: string): string {
-	const match = /^([0-9]+- )?(.+)$/.exec(name);
-	return match ? match[2] : name;
+	return name.replace(/(^|\()[0-9]+- /, "$1");
 }
 
 /**
