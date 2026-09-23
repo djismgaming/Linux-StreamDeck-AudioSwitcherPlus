@@ -1,48 +1,101 @@
-## Description
+# StreamDeck-AudioSwitcherPlus
 
-StreamDeck-AudioSwitcherPlus is an Elgato Stream Deck plugin for setting the default audio device. It runs on **Windows** (Stream Deck) and **Linux** (via [OpenDeck](https://github.com/nekename/OpenDeck), using PulseAudio/PipeWire) - macOS is not supported.
+An audio-switcher plugin for the [Stream Deck](https://www.elgato.com/us/en/s/welcome-to-stream-deck) that runs **natively on Linux** via [OpenDeck](https://github.com/nekename/OpenDeck). This fork exists specifically to add Linux support — audio switching is implemented over **PulseAudio/PipeWire**, with no COM, no Wine, and no Windows emulation layer.
 
-> **This is a fork** of [Fred Emmott](https://github.com/fredemmott)'s original [StreamDeck-AudioOutputSwitcher](https://github.com/fredemmott/StreamDeck-AudioOutputSwitcher), extended with additional features (hiding disabled/unplugged devices, hiding device-type suffixes, an "All" button role, stripped Windows device-name prefixes, per-button custom icons with color selection, and a native Linux/PipeWire port). All credit for the original plugin, its design, and the underlying audio-switching approach goes to Fred Emmott — please check out [his other Stream Deck plugins](https://github.com/fredemmott) as well.
+> **This is a fork** of [Fred Emmott](https://github.com/fredemmott)'s original [StreamDeck-AudioOutputSwitcher](https://github.com/fredemmott/StreamDeck-AudioOutputSwitcher), extended with a native Linux/PipeWire port and the additional features listed below. All credit for the original plugin, its design, and the underlying audio-switching approach goes to Fred Emmott — please check out [his other Stream Deck plugins](https://github.com/fredemmott) as well.
 
-## Two implementations, one plugin
+## Features
 
-This repo contains two separate, independently-installable builds of the same plugin concept - same feature set (device direction, default/communication/"all" role, fuzzy device matching, custom icons/colors), different underlying tech:
+- Set the **input** or **output** audio device
+- Either **one button per device**, or **one button that toggles** between two devices
+- **Custom icons** per button (earbuds, headphones, mic, speaker) with **custom colors** for On and Off states
+- **Simplified device selection**:
+  - hide disabled / unplugged devices
+  - hide the device type suffix (which Windows gets wrong often)
+- **Fuzzy device matching** so buttons keep working even if a device's ID changes between boots
 
-| | [`audio-switcher-exe/`](audio-switcher-exe/) | [`audio-switcher-node/`](audio-switcher-node/) |
+## Supported platforms
+
+| Platform | Launcher | Status |
 |---|---|---|
-| Runtime | Native C++, compiled to its own `sdaudioswitchplus.exe` | Node.js, running inside Stream Deck's own bundled Node runtime |
-| Device switching | Direct in-process COM calls | The same COM calls, via inline C# run through `powershell.exe` |
-| Responsiveness | Fast - real-time, in-process | Noticeably slower - each switch/poll is a fresh `powershell.exe` process |
-| Windows Smart App Control | **Can be blocked** - it's a freshly-compiled, unsigned, no-reputation executable | Not affected - never launches its own executable, so there's nothing for Smart App Control to flag |
-| Status | Original, most mature | Newer, built specifically to sidestep the Smart App Control issue |
-| Linux (OpenDeck) | Supported - native build via libpulse/PipeWire | Not supported (Node build is Windows-only) |
+| **Linux** | [OpenDeck](https://github.com/nekename/OpenDeck) | **Supported — native build** (this fork's purpose) |
+| Windows | Stream Deck | Supported (native build) |
+| macOS | — | Not supported |
 
-Both install and run completely independently (different plugin UUIDs, different install folders), so you can have either or both active at once. If Smart App Control isn't a problem for you, the exe version is the more responsive choice; otherwise the Node version trades some responsiveness for not being blocked. See each folder's own README for setup, features, and its own troubleshooting guide.
+OpenDeck is an open-source alternative to the Stream Deck app that runs on Linux (the official Stream Deck app is Windows/macOS-only). On Linux the plugin controls audio through **libpulse**, which talks to PipeWire's PulseAudio-compatible server on modern desktops.
 
-Shared, non-code assets (currently just the button icons) live in [`shared/`](shared/) and are pulled in by both projects' build steps rather than duplicated.
+## How audio switching works on Linux
 
-## Building
+- **Sinks/sources become devices.** Every PulseAudio sink (output) or source (input) appears in the device list; each of its selectable **ports** also appears as its own device. A sound card with both a **Line Out** and a **Headphones** jack exposes both as separate devices, so a toggle button switches between the two jacks of one card.
+- **"Communication" role == default device.** PulseAudio only has one default device per direction, so the default and communication roles are the same thing — use the **"All"** role (the default for new buttons).
+- Device IDs are PulseAudio names like `alsa_output.pci-0000_0b_00.4.analog-stereo|analog-output-headphones`; the fuzzy-matching fallback still applies if a device's ID changes between boots.
 
-Each build documents its own process - see the "Building"/"Building From Source" section of [the exe README](audio-switcher-exe/README.md#building-from-source) or [the node README](audio-switcher-node/README.md#building). On Windows, the build steps install straight into `%APPDATA%\Elgato\StreamDeck\Plugins\`, so **fully quit Stream Deck before building/installing**, then relaunch it afterward to pick up the change. On Linux, the exe build installs into `~/.config/opendeck/plugins/` for OpenDeck - same idea: quit OpenDeck before reinstalling, restart it afterward.
+## Using the plugin in OpenDeck
 
-## Notes
+The build installs the plugin into OpenDeck's plugin directory and OpenDeck lists it automatically — no special setup beyond building and installing it.
 
-On Windows, this uses undocumented and unsupported Windows APIs (the same ones, either way). These have apparently worked since Windows 7, but they might stop working at any time or have unexpected side effects.
+### 1. Clone the repo
 
-On Linux, switching devices means switching the default PulseAudio sink/source and its active port (so the Line Out and Headphones jacks of one card appear as separate devices), via the PulseAudio API implemented by PipeWire. The "communication device" concept does not exist on Linux, so the default and communication roles are equivalent.
+```bash
+git clone https://github.com/djismgaming/Linux-StreamDeck-AudioSwitcherPlus
+cd Linux-StreamDeck-AudioSwitcherPlus
+```
 
-This fork does not support macOS - the upstream project did, but maintaining and testing a Mac build isn't something this fork can commit to. If you're on a Mac, use [the original StreamDeck-AudioOutputSwitcher](https://github.com/fredemmott/StreamDeck-AudioOutputSwitcher) instead.
+### 2. Build and install the native plugin
+
+Requires a C++20 compiler, CMake 3.15+, pkg-config, and the PulseAudio client headers (on Fedora: `sudo dnf install pulseaudio-libs-devel`; on Debian/Ubuntu: `sudo apt install libpulse-dev`). The build fetches fredemmott's StreamDeck C++ SDK automatically.
+
+```bash
+cd audio-switcher-exe
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+cmake --install build
+```
+
+This compiles the plugin and installs it into `~/.config/opendeck/plugins/com.morganscruggs.audioswitcherplus.sdPlugin`.
+
+If OpenDeck is running, fully quit it (or restart it / its systemd unit) before installing and relaunch it afterward so it picks up the new binary.
+
+### 3. Add a button
+
+1. Launch **OpenDeck**.
+2. Create a **Toggle Audio Device** (to switch between two devices) or **Set Audio Device** button.
+3. In the property inspector, pick your devices — for example **Headphones** as one and **Line Out** as the other.
+4. Press the button — your audio output switches between the two devices.
+
+The devices OpenDeck offers are the same ones `pactl list sinks` shows on your system.
+
+### Watching the plugin
+
+OpenDeck writes a plugin log you can tail to confirm the plugin registered and to see what it's doing:
+
+```bash
+tail -f ~/.local/share/opendeck/logs/plugins/com.morganscruggs.audioswitcherplus.sdPlugin.log
+```
+
+## Custom Icons & Colors
+
+Both "Set Audio Device" and "Toggle Audio Device" buttons let you pick an icon (Earbuds, Headphones, Mic, or Speaker) instead of the plugin's default images, plus a color for each of the button's states:
+
+- **Set Audio Device** has one icon with two colors — "On" (shown when the configured device is the active one) and "Off" (shown otherwise, defaulting to a dimmed grey).
+- **Toggle Audio Device** has two icons — one per device it switches between — each with its own color, defaulting to white.
+
+Icon choices are picked up automatically from [`shared/AudioDevicesIcons/`](shared/AudioDevicesIcons/) (copied into the plugin at build time); each file must be a white silhouette on a transparent background (the colors above are applied by recoloring the shape at runtime, not by swapping images). Drop in a new `<name>.png` file there to add another choice without any code changes.
+
+## Building on Windows
+
+The same native build also works on the official Stream Deck app for Windows. See the [exe README](audio-switcher-exe/README.md#building-from-source) for the Windows build steps (requires Visual Studio 2022). The Windows build installs into `%APPDATA%\Elgato\StreamDeck\Plugins\` — fully quit Stream Deck before building, then relaunch it afterward.
 
 ## Getting Help
 
-Check the relevant troubleshooting guide ([exe](audio-switcher-exe/TROUBLESHOOTING.md) / [node](audio-switcher-node/TROUBLESHOOTING.md)). I make this for my own use, and share in the hope that others find it useful - I am unable to offer support, or to act on bug reports or feature requests. Do not contact me for help via any means, including GitHub, Discord, Twitter, Reddit, or email. This software is used by many, and I do generally fix it when something changes to break it, but I do not guarantee this, and I'm not able to help with anyone's specific issues.
+OpenDeck keeps a per-plugin log — see [Using the plugin in OpenDeck](#using-the-plugin-in-opendeck) to find it. This is a personal project shared in the hope that others find it useful; I'm unable to offer support or to act on bug reports or feature requests. Do not contact me for help via any means, including GitHub, Discord, Twitter, Reddit, or email.
 
-If 'fuzzy matching' is required - or not functioning properly for you - ask your device manufacturer to fix their device/drivers to not change device IDs; Microsoft requires that these do not change.
+If 'fuzzy matching' is required — or not functioning properly for you — ask your device manufacturer to fix their device/drivers to not change device IDs; on Linux this is rarely an issue since PulseAudio names are stable.
 
 ## Thanks
 
 - Thanks to [Fred Emmott](https://github.com/fredemmott) for creating the original [StreamDeck-AudioOutputSwitcher](https://github.com/fredemmott/StreamDeck-AudioOutputSwitcher) that this project is forked from.
-- Thanks to "EreTIk" for finding/documenting the COM interface both implementations here rely on.
+- Thanks to "EreTIk" for finding/documenting the COM interface the Windows build relies on.
 - Thanks to "LordValgor" for the idea of making this plugin.
 
 ## License
