@@ -22,6 +22,16 @@ For example, this can be useful to switch between headphones and speakers if the
 
 By default, new buttons use fuzzy device matching and the "All" role (affecting both the default and communication device) - both can be changed per-button in the property inspector.
 
+## Linux support
+
+This build also runs natively on Linux under [OpenDeck](https://github.com/nekename/OpenDeck) (the Stream Deck app itself is Windows/macOS-only). On Linux, audio switching is implemented on top of libpulse, which talks to PipeWire's PulseAudio-compatible server on modern desktops - no COM, no Wine.
+
+Linux specifics:
+
+- **Sinks/sources become devices.** Every PulseAudio sink (output) or source (input) appears in the device list; each of its selectable ports also appears as its own device. A sound card with both a Line Out and a Headphones port exposes both as separate devices, so a toggle button can switch between the two jacks of one card.
+- **"Communication" role == default device.** PulseAudio only has one default device per direction, so the default and communication roles are the same thing; use the "All" role (the default for new buttons).
+- Device IDs are PulseAudio names like `alsa_output.pci-0000_0b_00.4.analog-stereo|analog-output-headphones`; the fuzzy-matching fallback still applies if a device's ID changes between boots.
+
 ## Custom Icons & Colors
 
 Both "Set Audio Device" and "Toggle Audio Device" buttons let you pick an icon (Earbuds, Headphones, Mic, or Speaker) instead of the plugin's default images, plus a color for each of the button's states:
@@ -47,7 +57,9 @@ Download the `com.morganscruggs.audioswitcherplus.streamDeckPlugin` file from [t
 
 # Building From Source
 
-Requires Visual Studio 2022 (with the "Desktop development with C++" workload) and CMake 3.15+. Windows only - see [the repo root README](../README.md).
+## Windows
+
+Requires Visual Studio 2022 (with the "Desktop development with C++" workload) and CMake 3.15+.
 
 ```powershell
 cd audio-switcher-exe
@@ -67,3 +79,24 @@ Start-Sleep -Seconds 2
 cmake --build . --config RelWithDebInfo --target install --parallel
 Start-Process "C:\Program Files\Elgato\StreamDeck\StreamDeck.exe"
 ```
+
+## Linux
+
+Requires a C++20 compiler, CMake 3.15+, pkg-config, and the PulseAudio client headers (on Fedora: `sudo dnf install pulseaudio-libs-devel`; on Debian/Ubuntu: `sudo apt install libpulse-dev`). The build fetches fredemmott's StreamDeck C++ SDK automatically.
+
+```bash
+cd audio-switcher-exe
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel
+cmake --install build
+```
+
+This compiles `sdaudioswitchplus` (no `.exe`) into the same repo-root `../com.morganscruggs.audioswitcherplus.sdPlugin` folder, then mirrors it into `~/.config/opendeck/plugins/com.morganscruggs.audioswitcherplus.sdPlugin` for [OpenDeck](https://github.com/nekename/OpenDeck).
+
+**Before rebuilding, fully quit OpenDeck** (or `systemctl --user restart` its unit after installing) - OpenDeck launches each plugin from its plugins directory and holds it open. Restart OpenDeck after installing so it picks up the new binary. To watch what the plugin is doing:
+
+```bash
+tail -f ~/.local/share/opendeck/logs/plugins/com.morganscruggs.audioswitcherplus.sdPlugin.log
+```
+
+On Linux the plugin talks to PipeWire via its PulseAudio-compatible interface (`pactl list sinks` shows the same devices the plugin sees).

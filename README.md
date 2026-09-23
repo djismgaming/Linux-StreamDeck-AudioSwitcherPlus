@@ -1,8 +1,8 @@
 ## Description
 
-StreamDeck-AudioSwitcherPlus is an Elgato Stream Deck plugin for setting the default Windows audio device. **Windows only** - macOS is not supported.
+StreamDeck-AudioSwitcherPlus is an Elgato Stream Deck plugin for setting the default audio device. It runs on **Windows** (Stream Deck) and **Linux** (via [OpenDeck](https://github.com/nekename/OpenDeck), using PulseAudio/PipeWire) - macOS is not supported.
 
-> **This is a fork** of [Fred Emmott](https://github.com/fredemmott)'s original [StreamDeck-AudioOutputSwitcher](https://github.com/fredemmott/StreamDeck-AudioOutputSwitcher), extended with additional features (hiding disabled/unplugged devices, hiding device-type suffixes, an "All" button role, stripped Windows device-name prefixes, and per-button custom icons with color selection). All credit for the original plugin, its design, and the underlying audio-switching approach goes to Fred Emmott — please check out [his other Stream Deck plugins](https://github.com/fredemmott) as well.
+> **This is a fork** of [Fred Emmott](https://github.com/fredemmott)'s original [StreamDeck-AudioOutputSwitcher](https://github.com/fredemmott/StreamDeck-AudioOutputSwitcher), extended with additional features (hiding disabled/unplugged devices, hiding device-type suffixes, an "All" button role, stripped Windows device-name prefixes, per-button custom icons with color selection, and a native Linux/PipeWire port). All credit for the original plugin, its design, and the underlying audio-switching approach goes to Fred Emmott — please check out [his other Stream Deck plugins](https://github.com/fredemmott) as well.
 
 ## Two implementations, one plugin
 
@@ -15,6 +15,7 @@ This repo contains two separate, independently-installable builds of the same pl
 | Responsiveness | Fast - real-time, in-process | Noticeably slower - each switch/poll is a fresh `powershell.exe` process |
 | Windows Smart App Control | **Can be blocked** - it's a freshly-compiled, unsigned, no-reputation executable | Not affected - never launches its own executable, so there's nothing for Smart App Control to flag |
 | Status | Original, most mature | Newer, built specifically to sidestep the Smart App Control issue |
+| Linux (OpenDeck) | Supported - native build via libpulse/PipeWire | Not supported (Node build is Windows-only) |
 
 Both install and run completely independently (different plugin UUIDs, different install folders), so you can have either or both active at once. If Smart App Control isn't a problem for you, the exe version is the more responsive choice; otherwise the Node version trades some responsiveness for not being blocked. See each folder's own README for setup, features, and its own troubleshooting guide.
 
@@ -22,11 +23,13 @@ Shared, non-code assets (currently just the button icons) live in [`shared/`](sh
 
 ## Building
 
-Each build documents its own process - see the "Building"/"Building From Source" section of [the exe README](audio-switcher-exe/README.md#building-from-source) or [the node README](audio-switcher-node/README.md#building). Both build steps install straight into `%APPDATA%\Elgato\StreamDeck\Plugins\`, so **fully quit Stream Deck before building/installing**, then relaunch it afterward to pick up the change.
+Each build documents its own process - see the "Building"/"Building From Source" section of [the exe README](audio-switcher-exe/README.md#building-from-source) or [the node README](audio-switcher-node/README.md#building). On Windows, the build steps install straight into `%APPDATA%\Elgato\StreamDeck\Plugins\`, so **fully quit Stream Deck before building/installing**, then relaunch it afterward to pick up the change. On Linux, the exe build installs into `~/.config/opendeck/plugins/` for OpenDeck - same idea: quit OpenDeck before reinstalling, restart it afterward.
 
 ## Notes
 
-This uses undocumented and unsupported Windows APIs (the same ones, either way). These have apparently worked since Windows 7, but they might stop working at any time or have unexpected side effects.
+On Windows, this uses undocumented and unsupported Windows APIs (the same ones, either way). These have apparently worked since Windows 7, but they might stop working at any time or have unexpected side effects.
+
+On Linux, switching devices means switching the default PulseAudio sink/source and its active port (so the Line Out and Headphones jacks of one card appear as separate devices), via the PulseAudio API implemented by PipeWire. The "communication device" concept does not exist on Linux, so the default and communication roles are equivalent.
 
 This fork does not support macOS - the upstream project did, but maintaining and testing a Mac build isn't something this fork can commit to. If you're on a Mac, use [the original StreamDeck-AudioOutputSwitcher](https://github.com/fredemmott/StreamDeck-AudioOutputSwitcher) instead.
 

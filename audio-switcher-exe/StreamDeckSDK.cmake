@@ -10,6 +10,24 @@ FetchContent_Declare(
 FetchContent_GetProperties(StreamDeckSDK)
 if(NOT streamdecksdk_POPULATED)
   FetchContent_Populate(StreamDeckSDK)
+  if(UNIX AND NOT APPLE)
+    # The vendored SDK predates GCC 16, whose libstdc++ no longer accepts
+    # copy-list-initialization of filesystem::path from a string_view. Patch it
+    # in place; idempotent, so it is safe across reconfigures.
+    set(ESDUTILS_LINUX_FILE "${streamdecksdk_SOURCE_DIR}/StreamDeckSDK/ESDUtilitiesLinux.cpp")
+    file(READ "${ESDUTILS_LINUX_FILE}" ESDUTILS_LINUX_CONTENT)
+    string(FIND "${ESDUTILS_LINUX_CONTENT}" "sPath = { std::string_view" ESDUTILS_NEEDS_PATCH)
+    if(NOT ESDUTILS_NEEDS_PATCH EQUAL -1)
+      string(
+        REPLACE
+        "sPath = { std::string_view { buf, bufLen } };"
+        "sPath = std::string { buf, bufLen };"
+        ESDUTILS_LINUX_CONTENT
+        "${ESDUTILS_LINUX_CONTENT}"
+      )
+      file(WRITE "${ESDUTILS_LINUX_FILE}" "${ESDUTILS_LINUX_CONTENT}")
+    endif()
+  endif()
   add_subdirectory("${streamdecksdk_SOURCE_DIR}" "${streamdecksdk_BINARY_DIR}" EXCLUDE_FROM_ALL)
 endif()
 
@@ -25,6 +43,12 @@ elseif(WIN32)
     "/"
     STREAMDECK_PLUGIN_DIR
     "$ENV{appdata}/Elgato/StreamDeck/Plugins"
+  )
+elseif(UNIX)
+  # OpenDeck's plugin directory; Stream Deck itself has no Linux build.
+  set(
+    STREAMDECK_PLUGIN_DIR
+    "$ENV{HOME}/.config/opendeck/plugins"
   )
 endif()
 
